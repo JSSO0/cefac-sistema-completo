@@ -4,12 +4,14 @@ const auth = require('../middleware/auth');
 const router = express.Router();
 
 // Get all subjects
+// Get all subjects
 router.get('/', auth(), async (req, res) => {
   try {
     const subjects = await Subject.findAll({
       include: [
         {
           model: Class,
+          as: 'classes', // <-- Adicionado 'as: classes'
           through: { attributes: [] }
         }
       ],
@@ -31,6 +33,7 @@ router.get('/:id', auth(), async (req, res) => {
       include: [
         {
           model: Class,
+          as: 'classes', // <-- Adicionado 'as: classes'
           through: { attributes: [] }
         }
       ]

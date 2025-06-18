@@ -33,14 +33,15 @@ Student.belongsTo(User, { foreignKey: 'userId' });
 Teacher.belongsTo(User, { foreignKey: 'userId' });
 
 // Class associations
-Class.belongsToMany(Student, { through: 'ClassStudents', foreignKey: 'classId' });
-Student.belongsToMany(Class, { through: 'ClassStudents', foreignKey: 'studentId' });
+// Garanta que o 'as' seja consistente aqui com o que você usa nas consultas e no Class.js
+Class.belongsToMany(Student, { through: 'ClassStudents', foreignKey: 'classId', as: 'students' }); // <--- Adicione ou ajuste o 'as' aqui!
+Student.belongsToMany(Class, { through: 'ClassStudents', foreignKey: 'studentId', as: 'classes' }); // <--- Adicione ou ajuste o 'as' aqui!
 
-Class.belongsToMany(Teacher, { through: 'ClassTeachers', foreignKey: 'classId' });
-Teacher.belongsToMany(Class, { through: 'ClassTeachers', foreignKey: 'teacherId' });
+Class.belongsToMany(Teacher, { through: 'ClassTeachers', foreignKey: 'classId', as: 'teachers' }); // <--- Adicione ou ajuste o 'as' aqui!
+Teacher.belongsToMany(Class, { through: 'ClassTeachers', foreignKey: 'teacherId', as: 'classes' }); // <--- Adicione ou ajuste o 'as' aqui!
 
-Class.belongsToMany(Subject, { through: 'ClassSubjects', foreignKey: 'classId' });
-Subject.belongsToMany(Class, { through: 'ClassSubjects', foreignKey: 'subjectId' });
+Class.belongsToMany(Subject, { through: 'ClassSubjects', foreignKey: 'classId', as: 'subjects' }); // <--- Adicione ou ajuste o 'as' aqui!
+Subject.belongsToMany(Class, { through: 'ClassSubjects', foreignKey: 'subjectId', as: 'classes' }); // <--- Adicione ou ajuste o 'as' aqui!
 
 // Attendance associations
 Attendance.belongsTo(Student, { foreignKey: 'studentId' });

@@ -14,6 +14,7 @@ router.get('/', auth(), async (req, res) => {
         },
         {
           model: Class,
+          as: 'classes', // <-- Adicionado 'as: classes'
           through: { attributes: [] }
         }
       ],
@@ -39,6 +40,7 @@ router.get('/:id', auth(), async (req, res) => {
         },
         {
           model: Class,
+          as: 'classes', // <-- Adicionado 'as: classes'
           through: { attributes: [] }
         }
       ]
