@@ -1,0 +1,210 @@
+.teachers-page {
+  padding: 32px;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+}
+
+.page-header h1 {
+  color: var(--primary-color);
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.teachers-table-container {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.status-badge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-badge.active {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.status-badge.inactive {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 14px;
+}
+
+.btn-danger {
+  background-color: #dc3545;
+  color: white;
+}
+
+.btn-danger:hover {
+  background-color: #c82333;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 24px 0 24px;
+  margin-bottom: 24px;
+}
+
+.modal-header h2 {
+  color: var(--primary-color);
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background-color 0.3s ease;
+}
+
+.modal-close:hover {
+  background-color: #f8f9fa;
+}
+
+.modal-form {
+  padding: 0 24px 24px 24px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border-color);
+}
+
+@media (max-width: 768px) {
+  .teachers-page {
+    padding: 16px;
+  }
+  
+  .page-header {
+    flex-direction: column;
+    gap: 16px;
+    align-items: stretch;
+  }
+  
+  .page-header h1 {
+    font-size: 24px;
+  }
+  
+  .teachers-table-container {
+    overflow-x: auto;
+  }
+  
+  .table {
+    min-width: 800px;
+  }
+  
+  .table th,
+  .table td {
+    padding: 12px 8px;
+    font-size: 14px;
+  }
+  
+  .action-buttons {
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .modal {
+    margin: 16px;
+    max-width: none;
+  }
+  
+  .modal-header {
+    padding: 16px 16px 0 16px;
+  }
+  
+  .modal-form {
+    padding: 0 16px 16px 16px;
+  }
+  
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  
+  .modal-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+}
+
