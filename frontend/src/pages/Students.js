@@ -14,12 +14,10 @@ const Students = () => {
     //userId: '',
     fullName: '',
     birthDate: '',
-    cpf: '',
     phone: '',
     address: '',
     parentName: '',
-    parentPhone: '',
-    enrollmentNumber: ''
+    parentPhone: ''
   });
 
   const { user } = useAuth();
@@ -76,12 +74,10 @@ const Students = () => {
       //userId: '',
       fullName: '',
       birthDate: '',
-      cpf: '',
       phone: '',
       address: '',
       parentName: '',
-      parentPhone: '',
-      enrollmentNumber: ''
+      parentPhone: ''
     });
   };
 
@@ -91,12 +87,10 @@ const Students = () => {
       //userId: student.userId,
       fullName: student.fullName,
       birthDate: student.birthDate || '',
-      cpf: student.cpf || '',
       phone: student.phone || '',
       address: student.address || '',
       parentName: student.parentName || '',
       parentPhone: student.parentPhone || '',
-      enrollmentNumber: student.enrollmentNumber
     });
     setShowModal(true);
   };
@@ -228,16 +222,6 @@ const Students = () => {
                 />
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Número de Matrícula </label>
-                <input
-                  type="text"
-                  className="form-input"
-                  value={formData.enrollmentNumber}
-                  onChange={(e) => setFormData({ ...formData, enrollmentNumber: e.target.value })}
-                />
-              </div>
-
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label">Data de Nascimento</label>
@@ -249,16 +233,6 @@ const Students = () => {
                   />
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label">CPF</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={formData.cpf}
-                    onChange={(e) => setFormData({ ...formData, cpf: e.target.value })}
-                    placeholder="000.000.000-00"
-                  />
-                </div>
               </div>
 
               <div className="form-group">

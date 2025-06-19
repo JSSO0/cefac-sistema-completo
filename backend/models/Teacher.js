@@ -1,4 +1,6 @@
-const { DataTypes } = require('sequelize');
+const {
+  DataTypes
+} = require('sequelize');
 
 module.exports = (sequelize) => {
   const Teacher = sequelize.define('Teacher', {
@@ -26,11 +28,14 @@ module.exports = (sequelize) => {
     },
     employeeNumber: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true,
       unique: true,
       validate: {
-        notEmpty: true,
-        len: [1, 50]
+        isValid(value) {
+          if (value && value.trim().length < 1) {
+            throw new Error('Número de matrícula inválido');
+          }
+        }
       }
     },
     birthDate: {
@@ -73,8 +78,7 @@ module.exports = (sequelize) => {
   }, {
     tableName: 'teachers',
     timestamps: true,
-    indexes: [
-      {
+    indexes: [{
         unique: true,
         fields: ['employeeNumber']
       },
@@ -111,4 +115,3 @@ module.exports = (sequelize) => {
 
   return Teacher;
 };
-

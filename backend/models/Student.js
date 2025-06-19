@@ -9,15 +9,6 @@ module.exports = (sequelize) => {
       primaryKey: true,
       autoIncrement: true
     },
-    /* userId: {
-       type: DataTypes.INTEGER,
-       allowNull: false,
-       unique: true,
-       references: {
-         model: 'users',
-         key: 'id'
-       }
-     },*/
     fullName: {
       type: DataTypes.STRING,
       allowNull: false,
@@ -26,32 +17,9 @@ module.exports = (sequelize) => {
         len: [2, 255]
       }
     },
-    enrollmentNumber: {
-      type: DataTypes.STRING,
-      allowNull: true,
-      unique: true,
-      validate: {
-        customLen(value) {
-          if (value && value.length < 1) {
-            throw new Error('Número de matrícula inválido');
-          }
-        }
-      }
-    },
     birthDate: {
       type: DataTypes.DATEONLY,
       allowNull: true
-    },
-    cpf: {
-      type: DataTypes.STRING(14),
-      allowNull: true,
-      validate: {
-        customLen(value) {
-          if (value && value.length < 11) {
-            throw new Error('CPF inválido');
-          }
-        }
-      }
     },
     phone: {
       type: DataTypes.STRING(20),
@@ -79,10 +47,7 @@ module.exports = (sequelize) => {
   }, {
     tableName: 'students',
     timestamps: true,
-    indexes: [{
-        unique: true,
-        fields: ['enrollmentNumber']
-      },
+    indexes: [
       {
         unique: true,
         fields: ['userId']

@@ -246,13 +246,13 @@ const Teachers = () => {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Número de Matrícula *</label>
+                <label className="form-label">Número de Matrícula </label>
                 <input
                   type="text"
                   className="form-input"
                   value={formData.employeeNumber}
                   onChange={(e) => setFormData({ ...formData, employeeNumber: e.target.value })}
-                  required
+                  
                 />
               </div>
 

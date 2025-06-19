@@ -69,24 +69,20 @@ router.post('/', auth('admin'),  async (req, res) => {
       //userId,
       fullName,
       birthDate,
-      cpf,
       phone,
       address,
       parentName,
-      parentPhone,
-      enrollmentNumber
+      parentPhone
     } = req.body;
 
     const student = await Student.create({
       //userId,
       fullName,
       birthDate,
-      cpf,
       phone,
       address,
       parentName,
-      parentPhone,
-      enrollmentNumber
+      parentPhone
     });
 
     const studentWithUser = await Student.findByPk(student.id, {
@@ -110,12 +106,10 @@ router.put('/:id', auth(), async (req, res) => {
     const {
       fullName,
       birthDate,
-      cpf,
       phone,
       address,
       parentName,
-      parentPhone,
-      enrollmentNumber
+      parentPhone
     } = req.body;
 
     const student = await Student.findByPk(id);
@@ -131,12 +125,10 @@ router.put('/:id', auth(), async (req, res) => {
     await student.update({
       fullName,
       birthDate,
-      cpf,
       phone,
       address,
       parentName,
-      parentPhone,
-      enrollmentNumber
+      parentPhone
     });
 
     const updatedStudent = await Student.findByPk(id, {

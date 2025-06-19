@@ -11,7 +11,7 @@ router.get("/", auth(), async (req, res) => {
         {
           model: Student,
           as: "students",
-          attributes: ["id", "fullName", "enrollmentNumber"],
+          attributes: ["id", "fullName"],
           through: { attributes: [] },
         },
         {
@@ -47,7 +47,7 @@ router.get("/:id", auth(), async (req, res) => {
         {
           model: Student,
           as: "students",
-          attributes: ["id", "fullName", "enrollmentNumber", "phone"],
+          attributes: ["id", "fullName", "phone"],
           through: { attributes: [] },
         },
         {
@@ -105,7 +105,7 @@ router.post("/", auth("admin"),  async (req, res) => {
         {
           model: Student,
           as: "students",
-          attributes: ["id", "fullName", "enrollmentNumber"],
+          attributes: ["id", "fullName"],
           through: { attributes: [] },
         },
         {
@@ -170,7 +170,7 @@ router.put("/:id", auth("admin"),  async (req, res) => {
         {
           model: Student,
           as: "students",
-          attributes: ["id", "fullName", "enrollmentNumber"],
+          attributes: ["id", "fullName"],
           through: { attributes: [] },
         },
         {
