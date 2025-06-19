@@ -66,7 +66,7 @@ router.get('/:id', auth(), async (req, res) => {
 router.post('/', auth('admin'),  async (req, res) => {
   try {
     const {
-      userId,
+      //userId,
       fullName,
       birthDate,
       cpf,
@@ -78,7 +78,7 @@ router.post('/', auth('admin'),  async (req, res) => {
     } = req.body;
 
     const student = await Student.create({
-      userId,
+      //userId,
       fullName,
       birthDate,
       cpf,

@@ -11,7 +11,7 @@ const Students = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
   const [formData, setFormData] = useState({
-    userId: '',
+    //userId: '',
     fullName: '',
     birthDate: '',
     cpf: '',
@@ -73,7 +73,7 @@ const Students = () => {
 
   const resetForm = () => {
     setFormData({
-      userId: '',
+      //userId: '',
       fullName: '',
       birthDate: '',
       cpf: '',
@@ -88,7 +88,7 @@ const Students = () => {
   const handleEdit = (student) => {
     setEditingStudent(student);
     setFormData({
-      userId: student.userId,
+      //userId: student.userId,
       fullName: student.fullName,
       birthDate: student.birthDate || '',
       cpf: student.cpf || '',
@@ -215,24 +215,7 @@ const Students = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="modal-form">
-              {!editingStudent && (
-                <div className="form-group">
-                  <label className="form-label">Usuário *</label>
-                  <select
-                    className="form-select"
-                    value={formData.userId}
-                    onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
-                    required
-                  >
-                    <option value="">Selecione um usuário</option>
-                    {users.map((user) => (
-                      <option key={user.id} value={user.id}>
-                        {user.username} ({user.email})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
+
 
               <div className="form-group">
                 <label className="form-label">Nome Completo *</label>
@@ -246,13 +229,12 @@ const Students = () => {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Número de Matrícula *</label>
+                <label className="form-label">Número de Matrícula </label>
                 <input
                   type="text"
                   className="form-input"
                   value={formData.enrollmentNumber}
                   onChange={(e) => setFormData({ ...formData, enrollmentNumber: e.target.value })}
-                  required
                 />
               </div>
 

@@ -1,4 +1,6 @@
-const { DataTypes } = require('sequelize');
+const {
+  DataTypes
+} = require('sequelize');
 
 module.exports = (sequelize) => {
   const Student = sequelize.define('Student', {
@@ -7,15 +9,15 @@ module.exports = (sequelize) => {
       primaryKey: true,
       autoIncrement: true
     },
-    userId: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      unique: true,
-      references: {
-        model: 'users',
-        key: 'id'
-      }
-    },
+    /* userId: {
+       type: DataTypes.INTEGER,
+       allowNull: false,
+       unique: true,
+       references: {
+         model: 'users',
+         key: 'id'
+       }
+     },*/
     fullName: {
       type: DataTypes.STRING,
       allowNull: false,
@@ -26,11 +28,14 @@ module.exports = (sequelize) => {
     },
     enrollmentNumber: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true,
       unique: true,
       validate: {
-        notEmpty: true,
-        len: [1, 50]
+        customLen(value) {
+          if (value && value.length < 1) {
+            throw new Error('Número de matrícula inválido');
+          }
+        }
       }
     },
     birthDate: {
@@ -41,7 +46,11 @@ module.exports = (sequelize) => {
       type: DataTypes.STRING(14),
       allowNull: true,
       validate: {
-        len: [11, 14]
+        customLen(value) {
+          if (value && value.length < 11) {
+            throw new Error('CPF inválido');
+          }
+        }
       }
     },
     phone: {
@@ -70,8 +79,7 @@ module.exports = (sequelize) => {
   }, {
     tableName: 'students',
     timestamps: true,
-    indexes: [
-      {
+    indexes: [{
         unique: true,
         fields: ['enrollmentNumber']
       },
@@ -84,10 +92,10 @@ module.exports = (sequelize) => {
 
   Student.associate = (models) => {
     // Relacionamento one-to-one com User
-    Student.belongsTo(models.User, {
+    /*Student.belongsTo(models.User, {
       foreignKey: 'userId',
       as: 'user'
-    });
+    });*/
 
     // Relacionamento many-to-many com Class
     Student.belongsToMany(models.Class, {
@@ -106,4 +114,3 @@ module.exports = (sequelize) => {
 
   return Student;
 };
-

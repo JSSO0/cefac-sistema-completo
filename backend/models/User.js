@@ -58,10 +58,10 @@ module.exports = (sequelize) => {
 
   User.associate = (models) => {
     // Relacionamento one-to-one com Student
-    User.hasOne(models.Student, {
+   /* User.hasOne(models.Student, {
       foreignKey: 'userId',
       as: 'studentProfile'
-    });
+    });*/
 
     // Relacionamento one-to-one com Teacher
     User.hasOne(models.Teacher, {
