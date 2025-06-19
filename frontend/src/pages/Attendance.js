@@ -13,15 +13,51 @@ const Attendance = () => {
   const [selectedClass, setSelectedClass] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [showAttendanceForm, setShowAttendanceForm] = useState(false);
   const [attendanceData, setAttendanceData] = useState({});
+  const [teacherAssignments, setTeacherAssignments] = useState([]);
 
   const { user } = useAuth();
 
   useEffect(() => {
-    fetchClasses();
-    fetchSubjects();
-  }, []);
+    const fetchInitialData = async () => {
+      try {
+        if (user?.role === 'teacher') {
+          const assignmentsResponse = await axios.get('http://localhost:3001/api/attendance/teacher-assignments', {
+            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+          });
+          setTeacherAssignments(assignmentsResponse.data);
+
+          const assignedClasses = assignmentsResponse.data.map(assignment => assignment.class);
+          const uniqueClasses = Array.from(new Map(assignedClasses.map(item => [item['id'], item])).values());
+          setClasses(uniqueClasses);
+
+          const assignedSubjects = assignmentsResponse.data.map(assignment => assignment.subject);
+          const uniqueSubjects = Array.from(new Map(assignedSubjects.map(item => [item['id'], item])).values());
+          setSubjects(uniqueSubjects);
+
+        } else if (user?.role === 'admin') {
+          const classesResponse = await axios.get('http://localhost:3001/api/classes', {
+            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+          });
+          setClasses(classesResponse.data.filter(c => c.isActive));
+
+          const subjectsResponse = await axios.get('http://localhost:3001/api/subjects', {
+            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+          });
+          setSubjects(subjectsResponse.data.filter(s => s.isActive));
+        }
+      } catch (err) {
+        setError('Erro ao carregar dados iniciais: ' + err.message);
+        console.error('Erro ao carregar dados iniciais:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user) {
+      fetchInitialData();
+    }
+  }, [user]);
 
   useEffect(() => {
     if (selectedClass) {
@@ -35,41 +71,15 @@ const Attendance = () => {
     }
   }, [selectedClass, selectedSubject, selectedDate]);
 
-  const fetchClasses = async () => {
-    try {
-      const response = await axios.get('http://localhost:3001/api/classes');
-      let filteredClasses = response.data.filter(c => c.isActive);
-      
-      // Se for professor, filtrar apenas suas turmas
-      if (user?.role === 'teacher') {
-        // Aqui você implementaria a lógica para filtrar turmas do professor
-        // Por enquanto, mostra todas as turmas
-      }
-      
-      setClasses(filteredClasses);
-    } catch (error) {
-      setError('Erro ao carregar turmas');
-      console.error('Erro ao carregar turmas:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchSubjects = async () => {
-    try {
-      const response = await axios.get('http://localhost:3001/api/subjects');
-      setSubjects(response.data.filter(s => s.isActive));
-    } catch (error) {
-      console.error('Erro ao carregar disciplinas:', error);
-    }
-  };
-
   const fetchStudentsFromClass = async () => {
     try {
-      const response = await axios.get(`http://localhost:3001/api/classes/${selectedClass}`);
+      const response = await axios.get(`http://localhost:3001/api/classes/${selectedClass}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
       setStudents(response.data.students || []);
-    } catch (error) {
-      console.error('Erro ao carregar alunos da turma:', error);
+    } catch (err) {
+      console.error('Erro ao carregar alunos da turma:', err);
+      setError('Erro ao carregar alunos da turma.');
     }
   };
 
@@ -80,7 +90,8 @@ const Attendance = () => {
           classId: selectedClass,
           subjectId: selectedSubject,
           date: selectedDate
-        }
+        },
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       
       const records = response.data;
@@ -96,8 +107,9 @@ const Attendance = () => {
       
       setAttendanceRecords(records);
       setAttendanceData(attendanceMap);
-    } catch (error) {
-      console.error('Erro ao carregar registros de frequência:', error);
+    } catch (err) {
+      console.error('Erro ao carregar registros de frequência:', err);
+      setError('Erro ao carregar registros de frequência.');
       setAttendanceRecords([]);
       setAttendanceData({});
     }
@@ -119,6 +131,18 @@ const Attendance = () => {
       return;
     }
 
+    // Validar se o professor está autorizado para esta combinação (se for professor)
+    if (user?.role === 'teacher') {
+      const isAuthorized = teacherAssignments.some(assignment => 
+        assignment.class.id === parseInt(selectedClass) && 
+        assignment.subject.id === parseInt(selectedSubject)
+      );
+      if (!isAuthorized) {
+        setError('Você não está autorizado a registrar frequência para esta turma e disciplina.');
+        return;
+      }
+    }
+
     try {
       const attendanceList = students.map(student => ({
         studentId: student.id,
@@ -131,14 +155,16 @@ const Attendance = () => {
 
       await axios.post('http://localhost:3001/api/attendance/bulk', {
         attendanceList
+      }, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
 
       setError('');
       alert('Frequência salva com sucesso!');
       fetchAttendanceRecords();
-    } catch (error) {
-      setError('Erro ao salvar frequência');
-      console.error('Erro ao salvar frequência:', error);
+    } catch (err) {
+      setError('Erro ao salvar frequência: ' + (err.response?.data?.error || err.message));
+      console.error('Erro ao salvar frequência:', err);
     }
   };
 
@@ -302,4 +328,5 @@ const Attendance = () => {
 };
 
 export default Attendance;
+
 

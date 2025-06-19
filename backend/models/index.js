@@ -24,6 +24,8 @@ const Teacher = require('./Teacher')(sequelize);
 const Subject = require('./Subject')(sequelize);
 const Class = require('./Class')(sequelize);
 const Attendance = require('./Attendance')(sequelize);
+const TeacherClassSubject = require("./TeacherClassSubject")(sequelize);
+
 
 // Define associations
 // User associations
@@ -43,6 +45,13 @@ Teacher.belongsToMany(Class, { through: 'ClassTeachers', foreignKey: 'teacherId'
 Class.belongsToMany(Subject, { through: 'ClassSubjects', foreignKey: 'classId', as: 'subjects' }); // <--- Adicione ou ajuste o 'as' aqui!
 Subject.belongsToMany(Class, { through: 'ClassSubjects', foreignKey: 'subjectId', as: 'classes' }); // <--- Adicione ou ajuste o 'as' aqui!
 
+Teacher.hasMany(TeacherClassSubject, { foreignKey: "teacherId" });
+Class.hasMany(TeacherClassSubject, { foreignKey: "classId" });
+Subject.hasMany(TeacherClassSubject, { foreignKey: "subjectId" });
+TeacherClassSubject.belongsTo(Teacher, { foreignKey: "teacherId" });
+TeacherClassSubject.belongsTo(Class, { foreignKey: "classId" });
+TeacherClassSubject.belongsTo(Subject, { foreignKey: "subjectId" });
+
 // Attendance associations
 Attendance.belongsTo(Student, { foreignKey: 'studentId' });
 Attendance.belongsTo(Class, { foreignKey: 'classId' });
@@ -61,6 +70,9 @@ module.exports = {
   Teacher,
   Subject,
   Class,
-  Attendance
+  Attendance,
+  TeacherClassSubject,
 };
+
+
 

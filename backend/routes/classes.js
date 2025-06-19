@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { Class, Student, Teacher, Subject } = require("../models");
+const { Class, Student, Teacher, Subject, TeacherClassSubject } = require("../models");
 const auth = require("../middleware/auth");
 
 // GET /api/classes - Listar todas as turmas
@@ -452,6 +452,62 @@ router.delete(
       res.json({ message: "Disciplina removida da turma com sucesso" });
     } catch (error) {
       console.error("Erro ao remover disciplina da turma:", error);
+      res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  }
+);
+
+// Rotas para vincular/desvincular professor a turma e disciplina
+router.post(
+  "/:classId/teachers/:teacherId/subjects/:subjectId",
+  auth("admin"),
+  async (req, res) => {
+    try {
+      const { classId, teacherId, subjectId } = req.params;
+
+      const classItem = await Class.findByPk(classId);
+      const teacher = await Teacher.findByPk(teacherId);
+      const subject = await Subject.findByPk(subjectId);
+
+      if (!classItem || !teacher || !subject) {
+        return res.status(404).json({ error: "Turma, professor ou disciplina não encontrados" });
+      }
+
+      const [teacherClassSubject, created] = await TeacherClassSubject.findOrCreate({
+        where: { teacherId, classId, subjectId },
+        defaults: { teacherId, classId, subjectId },
+      });
+
+      if (!created) {
+        return res.status(400).json({ error: "Professor já vinculado a esta turma e disciplina" });
+      }
+
+      res.status(201).json({ message: "Vínculo criado com sucesso", teacherClassSubject });
+    } catch (error) {
+      console.error("Erro ao vincular professor a turma e disciplina:", error);
+      res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  }
+);
+
+router.delete(
+  "/:classId/teachers/:teacherId/subjects/:subjectId",
+  auth("admin"),
+  async (req, res) => {
+    try {
+      const { classId, teacherId, subjectId } = req.params;
+
+      const deletedCount = await TeacherClassSubject.destroy({
+        where: { teacherId, classId, subjectId },
+      });
+
+      if (deletedCount === 0) {
+        return res.status(404).json({ error: "Vínculo não encontrado" });
+      }
+
+      res.json({ message: "Vínculo removido com sucesso" });
+    } catch (error) {
+      console.error("Erro ao desvincular professor de turma e disciplina:", error);
       res.status(500).json({ error: "Erro interno do servidor" });
     }
   }

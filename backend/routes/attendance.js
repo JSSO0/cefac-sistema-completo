@@ -1,12 +1,27 @@
 const express = require('express');
 const router = express.Router();
-const { User, Student, Teacher, Subject, Class, Attendance } = require('../models');
+const {
+  User,
+  Student,
+  Teacher,
+  Subject,
+  Class,
+  Attendance,
+  TeacherClassSubject
+} = require("../models");
 const auth = require('../middleware/auth');
 
 // GET /api/attendance - Listar registros de frequência com filtros
 router.get('/', auth(), async (req, res) => {
   try {
-    const { classId, subjectId, studentId, date, startDate, endDate } = req.query;
+    const {
+      classId,
+      subjectId,
+      studentId,
+      date,
+      startDate,
+      endDate
+    } = req.query;
 
     let whereClause = {};
 
@@ -23,10 +38,9 @@ router.get('/', auth(), async (req, res) => {
 
     const attendanceRecords = await Attendance.findAll({
       where: whereClause,
-      include: [
-        {
+      include: [{
           model: Student,
-          attributes: ["id", "fullName"] 
+          attributes: ["id", "fullName"]
         },
         {
           model: Class,
@@ -37,23 +51,54 @@ router.get('/', auth(), async (req, res) => {
           attributes: ['id', 'name', 'code']
         }
       ],
-      order: [['date', 'DESC'], ['createdAt', 'DESC']]
+      order: [
+        ['date', 'DESC'],
+        ['createdAt', 'DESC']
+      ]
     });
 
     res.json(attendanceRecords);
   } catch (error) {
     console.error('Erro ao buscar registros de frequência:', error);
-    res.status(500).json({ error: 'Erro interno do servidor' });
+    res.status(500).json({
+      error: 'Erro interno do servidor'
+    });
   }
 });
 
 // POST /api/attendance - Criar registro individual de frequência
-router.post('/', auth('admin', 'coordenador'), async (req, res) => {
+router.post('/', auth('admin', 'coordenador', 'teacher'), async (req, res) => {
   try {
-    const { studentId, classId, subjectId, date, present, justification } = req.body;
+    const {
+      studentId,
+      classId,
+      subjectId,
+      date,
+      present,
+      justification
+    } = req.body;
+    const teacherId = req.user.teacherProfile.id;
+    const isAuthorized = await TeacherClassSubject.findOne({
+      where: {
+        teacherId,
+        classId,
+        subjectId
+      }
+    });
+
+    if (!isAuthorized && req.user.role !== "admin") {
+      return res.status(403).json({
+        error: "Professor não autorizado a registrar frequência para esta turma/disciplina"
+      });
+    }
 
     const existingRecord = await Attendance.findOne({
-      where: { studentId, classId, subjectId, date }
+      where: {
+        studentId,
+        classId,
+        subjectId,
+        date
+      }
     });
 
     if (existingRecord) {
@@ -63,10 +108,9 @@ router.post('/', auth('admin', 'coordenador'), async (req, res) => {
       });
 
       const updatedRecord = await Attendance.findByPk(existingRecord.id, {
-        include: [
-          {
+        include: [{
             model: Student,
-            attributes: ["id", "fullName"] 
+            attributes: ["id", "fullName"]
           },
           {
             model: Class,
@@ -88,14 +132,14 @@ router.post('/', auth('admin', 'coordenador'), async (req, res) => {
       subjectId,
       date,
       present,
-      justification: justification || null
+      justification: justification || null,
+      teacherId: teacherId
     });
 
     const newRecord = await Attendance.findByPk(attendanceRecord.id, {
-      include: [
-        {
+      include: [{
           model: Student,
-          attributes: ["id", "fullName"] 
+          attributes: ["id", "fullName"]
         },
         {
           model: Class,
@@ -111,26 +155,59 @@ router.post('/', auth('admin', 'coordenador'), async (req, res) => {
     res.status(201).json(newRecord);
   } catch (error) {
     console.error('Erro ao criar registro de frequência:', error);
-    res.status(500).json({ error: 'Erro interno do servidor' });
+    res.status(500).json({
+      error: 'Erro interno do servidor'
+    });
   }
 });
 
 // POST /api/attendance/bulk - Criar/atualizar registros em lote
-router.post('/bulk', auth('admin', 'coordenador'), async (req, res) => {
+router.post('/bulk', auth('admin', 'teacher'), async (req, res) => {
   try {
-    const { attendanceList } = req.body;
+    const teacherId = req.user.teacherProfile.id;
+    const {
+      attendanceList
+    } = req.body;
 
     if (!Array.isArray(attendanceList) || attendanceList.length === 0) {
-      return res.status(400).json({ error: 'Lista de frequência é obrigatória' });
+      return res.status(400).json({
+        error: 'Lista de frequência é obrigatória'
+      });
     }
 
     const results = [];
 
     for (const attendance of attendanceList) {
-      const { studentId, classId, subjectId, date, present, justification } = attendance;
+      const {
+        studentId,
+        classId,
+        subjectId,
+        date,
+        present,
+        justification
+      } = attendance;
+      // Verificar se o professor está vinculado a esta turma e disciplina para cada registro
+      const isAuthorized = await TeacherClassSubject.findOne({
+        where: {
+          teacherId,
+          classId,
+          subjectId
+        }
+      });
+
+      if (!isAuthorized && req.user.role !== "admin") {
+        // Se não autorizado, pula este registro ou retorna erro, dependendo da política
+        console.warn(`Professor ${teacherId} não autorizado para ${classId}/${subjectId}. Pulando registro.`);
+        continue; // Ou retorne um erro específico para este registro
+      }
 
       const existingRecord = await Attendance.findOne({
-        where: { studentId, classId, subjectId, date }
+        where: {
+          studentId,
+          classId,
+          subjectId,
+          date
+        }
       });
 
       if (existingRecord) {
@@ -152,27 +229,43 @@ router.post('/bulk', auth('admin', 'coordenador'), async (req, res) => {
       }
     }
 
-    res.json({ 
+    res.json({
       message: 'Frequência salva com sucesso',
       count: results.length,
       records: results
     });
   } catch (error) {
     console.error('Erro ao salvar frequência em lote:', error);
-    res.status(500).json({ error: 'Erro interno do servidor' });
+    res.status(500).json({
+      error: 'Erro interno do servidor'
+    });
   }
 });
 
 // PUT /api/attendance/:id - Atualizar registro de frequência
-router.put('/:id', auth('admin', 'coordenador'), async (req, res) => {
+router.put('/:id', auth('admin', 'teacher'), async (req, res) => {
   try {
-    const { id } = req.params;
-    const { present, justification } = req.body;
-
+    const {
+      id
+    } = req.params;
+    const {
+      present,
+      justification
+    } = req.body;
+const teacherId = req.user.teacherProfile.id;
     const attendanceRecord = await Attendance.findByPk(id);
 
     if (!attendanceRecord) {
-      return res.status(404).json({ error: 'Registro de frequência não encontrado' });
+      return res.status(404).json({
+        error: 'Registro de frequência não encontrado'
+      });
+    }
+
+        // Verificar se o professor que está atualizando é o mesmo que registrou ou é admin
+    if (attendanceRecord.teacherId !== teacherId && req.user.role !== "admin") {
+      return res.status(403).json({
+        error: "Você não tem permissão para atualizar este registro de frequência"
+      });
     }
 
     await attendanceRecord.update({
@@ -181,10 +274,9 @@ router.put('/:id', auth('admin', 'coordenador'), async (req, res) => {
     });
 
     const updatedRecord = await Attendance.findByPk(id, {
-      include: [
-        {
+      include: [{
           model: Student,
-          attributes: ["id", "fullName"] 
+          attributes: ["id", "fullName"]
         },
         {
           model: Class,
@@ -200,37 +292,56 @@ router.put('/:id', auth('admin', 'coordenador'), async (req, res) => {
     res.json(updatedRecord);
   } catch (error) {
     console.error('Erro ao atualizar registro de frequência:', error);
-    res.status(500).json({ error: 'Erro interno do servidor' });
+    res.status(500).json({
+      error: 'Erro interno do servidor'
+    });
   }
 });
 
 // DELETE /api/attendance/:id - Deletar registro de frequência
 router.delete('/:id', auth('admin'), async (req, res) => {
   try {
-    const { id } = req.params;
+    const {
+      id
+    } = req.params;
 
     const attendanceRecord = await Attendance.findByPk(id);
 
     if (!attendanceRecord) {
-      return res.status(404).json({ error: 'Registro de frequência não encontrado' });
+      return res.status(404).json({
+        error: 'Registro de frequência não encontrado'
+      });
     }
 
     await attendanceRecord.destroy();
 
-    res.json({ message: 'Registro de frequência deletado com sucesso' });
+    res.json({
+      message: 'Registro de frequência deletado com sucesso'
+    });
   } catch (error) {
     console.error('Erro ao deletar registro de frequência:', error);
-    res.status(500).json({ error: 'Erro interno do servidor' });
+    res.status(500).json({
+      error: 'Erro interno do servidor'
+    });
   }
 });
 
 // GET /api/attendance/stats/:studentId - Estatísticas de frequência do aluno
 router.get('/stats/:studentId', auth(), async (req, res) => {
   try {
-    const { studentId } = req.params;
-    const { subjectId, classId, startDate, endDate } = req.query;
+    const {
+      studentId
+    } = req.params;
+    const {
+      subjectId,
+      classId,
+      startDate,
+      endDate
+    } = req.query;
 
-    let whereClause = { studentId };
+    let whereClause = {
+      studentId
+    };
 
     if (subjectId) whereClause.subjectId = subjectId;
     if (classId) whereClause.classId = classId;
@@ -243,8 +354,7 @@ router.get('/stats/:studentId', auth(), async (req, res) => {
 
     const attendanceRecords = await Attendance.findAll({
       where: whereClause,
-      include: [
-        {
+      include: [{
           model: Subject,
           attributes: ['id', 'name', 'code']
         },
@@ -280,7 +390,7 @@ router.get('/stats/:studentId', auth(), async (req, res) => {
         subjectStats[subjectKey].absent++;
       }
 
-      subjectStats[subjectKey].percentage = 
+      subjectStats[subjectKey].percentage =
         ((subjectStats[subjectKey].present / subjectStats[subjectKey].total) * 100).toFixed(2);
     });
 
@@ -296,14 +406,21 @@ router.get('/stats/:studentId', auth(), async (req, res) => {
     });
   } catch (error) {
     console.error('Erro ao buscar estatísticas de frequência:', error);
-    res.status(500).json({ error: 'Erro interno do servidor' });
+    res.status(500).json({
+      error: 'Erro interno do servidor'
+    });
   }
 });
 
 // GET /api/attendance/report - Relatório de frequência
-router.get('/report', auth('admin', 'coordenador'), async (req, res) => {
+router.get('/report', auth('admin', 'teacher'), async (req, res) => {
   try {
-    const { classId, subjectId, startDate, endDate } = req.query;
+    const {
+      classId,
+      subjectId,
+      startDate,
+      endDate
+    } = req.query;
 
     let whereClause = {};
 
@@ -318,10 +435,9 @@ router.get('/report', auth('admin', 'coordenador'), async (req, res) => {
 
     const attendanceRecords = await Attendance.findAll({
       where: whereClause,
-      include: [
-        {
+      include: [{
           model: Student,
-          attributes: ["id", "fullName"] 
+          attributes: ["id", "fullName"]
         },
         {
           model: Class,
@@ -332,7 +448,10 @@ router.get('/report', auth('admin', 'coordenador'), async (req, res) => {
           attributes: ['id', 'name', 'code']
         }
       ],
-      order: [['date', 'ASC'], [Student, 'fullName', 'ASC']]
+      order: [
+        ['date', 'ASC'],
+        [Student, 'fullName', 'ASC']
+      ]
     });
 
     const studentStats = {};
@@ -358,7 +477,7 @@ router.get('/report', auth('admin', 'coordenador'), async (req, res) => {
         studentStats[studentKey].absent++;
       }
 
-      studentStats[studentKey].percentage = 
+      studentStats[studentKey].percentage =
         ((studentStats[studentKey].present / studentStats[studentKey].total) * 100).toFixed(2);
     });
 
@@ -366,13 +485,55 @@ router.get('/report', auth('admin', 'coordenador'), async (req, res) => {
       summary: {
         totalStudents: Object.keys(studentStats).length,
         totalRecords: attendanceRecords.length,
-        filters: { classId, subjectId, startDate, endDate }
+        filters: {
+          classId,
+          subjectId,
+          startDate,
+          endDate
+        }
       },
       students: Object.values(studentStats)
     });
   } catch (error) {
     console.error('Erro ao gerar relatório de frequência:', error);
-    res.status(500).json({ error: 'Erro interno do servidor' });
+    res.status(500).json({
+      error: 'Erro interno do servidor'
+    });
+  }
+});
+
+// GET /api/attendance/teacher-assignments - Obter turmas e disciplinas atribuídas ao professor logado
+router.get("/teacher-assignments", auth("teacher", "admin"), async (req, res) => {
+  try {
+    const teacherId = req.user.teacherProfile.id; // ID do professor logado
+
+    const assignments = await TeacherClassSubject.findAll({
+      where: {
+        teacherId
+      },
+      include: [{
+          model: Class,
+          attributes: ["id", "name", "grade", "shift", "year"]
+        },
+        {
+          model: Subject,
+          attributes: ["id", "name", "code"]
+        }
+      ]
+    });
+
+    // Formatar a resposta para ser mais fácil de consumir no frontend
+    const formattedAssignments = assignments.map(assignment => ({
+      class: assignment.Class,
+      subject: assignment.Subject
+    }));
+
+    res.json(formattedAssignments);
+  } catch (error) {
+    console.error("Erro ao buscar atribuições do professor:", error);
+    res.status(500).json({
+      error: "Erro interno do servidor"
+    });
   }
 });
 
