@@ -6,6 +6,8 @@ import '../styles/Teachers.css';
 const Teachers = () => {
   const [teachers, setTeachers] = useState([]);
   const [users, setUsers] = useState([]);
+  const [classes, setClasses] = useState([]);
+  const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -21,12 +23,15 @@ const Teachers = () => {
     specialization: '',
     employeeNumber: ''
   });
+  const [selectedAssignments, setSelectedAssignments] = useState([]); // Para armazenar as vinculações
 
   const { user } = useAuth();
 
   useEffect(() => {
     fetchTeachers();
     fetchUsers();
+    fetchClasses();
+    fetchSubjects();
   }, []);
 
   const fetchTeachers = async () => {
@@ -50,15 +55,33 @@ const Teachers = () => {
     }
   };
 
+  const fetchClasses = async () => {
+    try {
+      const response = await axios.get('http://localhost:3001/api/classes');
+      setClasses(response.data);
+    } catch (error) {
+      console.error('Erro ao carregar turmas:', error);
+    }
+  };
+
+  const fetchSubjects = async () => {
+    try {
+      const response = await axios.get('http://localhost:3001/api/subjects');
+      setSubjects(response.data);
+    } catch (error) {
+      console.error('Erro ao carregar disciplinas:', error);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
     try {
       if (editingTeacher) {
-        await axios.put(`http://localhost:3001/api/teachers/${editingTeacher.id}`, formData);
+        await axios.put(`http://localhost:3001/api/teachers/${editingTeacher.id}`, { ...formData, assignments: selectedAssignments });
       } else {
-        await axios.post('http://localhost:3001/api/teachers', formData);
+        await axios.post('http://localhost:3001/api/teachers', { ...formData, assignments: selectedAssignments });
       }
       
       fetchTeachers();
@@ -83,6 +106,7 @@ const Teachers = () => {
       specialization: '',
       employeeNumber: ''
     });
+    setSelectedAssignments([]);
   };
 
   const handleEdit = (teacher) => {
@@ -98,6 +122,8 @@ const Teachers = () => {
       specialization: teacher.specialization || '',
       employeeNumber: teacher.employeeNumber
     });
+    // TODO: Carregar as atribuições existentes do professor para edição
+    setSelectedAssignments([]); // Por enquanto, reseta para evitar erros
     setShowModal(true);
   };
 
@@ -110,6 +136,32 @@ const Teachers = () => {
         setError('Erro ao desativar professor');
       }
     }
+  };
+
+  const handleAssignmentChange = (e) => {
+    const [classId, subjectId] = e.target.value.split('-');
+    const existingIndex = selectedAssignments.findIndex(
+      (assignment) => assignment.classId === parseInt(classId) && assignment.subjectId === parseInt(subjectId)
+    );
+
+    if (existingIndex > -1) {
+      // Remove se já existe
+      const updatedAssignments = [...selectedAssignments];
+      updatedAssignments.splice(existingIndex, 1);
+      setSelectedAssignments(updatedAssignments);
+    } else {
+      // Adiciona se não existe
+      setSelectedAssignments([
+        ...selectedAssignments,
+        { classId: parseInt(classId), subjectId: parseInt(subjectId) },
+      ]);
+    }
+  };
+
+  const isAssignmentSelected = (classId, subjectId) => {
+    return selectedAssignments.some(
+      (assignment) => assignment.classId === classId && assignment.subjectId === subjectId
+    );
   };
 
   const formatDate = (dateString) => {
@@ -246,13 +298,13 @@ const Teachers = () => {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Número de Matrícula </label>
+                <label className="form-label">Número de Matrícula *</label>
                 <input
                   type="text"
                   className="form-input"
                   value={formData.employeeNumber}
                   onChange={(e) => setFormData({ ...formData, employeeNumber: e.target.value })}
-                  
+                  required
                 />
               </div>
 
@@ -325,6 +377,31 @@ const Teachers = () => {
                 </div>
               </div>
 
+              {/* Seção de Vinculação de Turmas e Disciplinas */}
+              <div className="form-group">
+                <label className="form-label">Vinculação de Turmas e Disciplinas</label>
+                <div className="assignments-list">
+                  {classes.map((cls) => (
+                    <div key={cls.id} className="assignment-class-group">
+                      <h4>{cls.name} ({cls.grade} - {cls.shift})</h4>
+                      <div className="assignment-subjects">
+                        {subjects.map((sub) => (
+                          <label key={sub.id} className="checkbox-label">
+                            <input
+                              type="checkbox"
+                              value={`${cls.id}-${sub.id}`}
+                              checked={isAssignmentSelected(cls.id, sub.id)}
+                              onChange={handleAssignmentChange}
+                            />
+                            {sub.name}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               <div className="modal-actions">
                 <button 
                   type="button" 
@@ -350,4 +427,5 @@ const Teachers = () => {
 };
 
 export default Teachers;
+
 

@@ -84,7 +84,7 @@ const Classes = () => {
 
   const fetchTeacherClassSubjects = async (classId) => {
     try {
-      const response = await axios.get(`http://localhost:3001/api/teachers/class-subjects/${classId}`, {
+      const response = await axios.get(`http://localhost:3001/api/classes/${classId}/teacher-subjects`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       setClassTeacherSubjects(response.data);
@@ -483,6 +483,9 @@ const Classes = () => {
                           </button>
                         </div>
                       ))}
+                    {students.filter(student => !selectedClass.students?.some(s => s.id === student.id)).length === 0 && (
+                      <p className="no-students">Todos os alunos já estão nesta turma ou não há alunos disponíveis.</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -491,19 +494,17 @@ const Classes = () => {
         </div>
       )}
 
-      {/* Modal de Gerenciar Professores/Disciplinas */}
+      {/* Modal de Gerenciar Professores e Disciplinas */}
       {showTeacherSubjectModal && selectedClass && (
         <div className="modal-overlay">
           <div className="modal modal-large">
             <div className="modal-header">
-              <h2>Gerenciar Professores/Disciplinas - {selectedClass.name}</h2>
+              <h2>Vincular Professores e Disciplinas - {selectedClass.name}</h2>
               <button 
                 className="modal-close"
                 onClick={() => {
                   setShowTeacherSubjectModal(false);
                   setSelectedClass(null);
-                  setSelectedTeacher('');
-                  setSelectedSubject('');
                   setError('');
                 }}
               >
@@ -512,63 +513,71 @@ const Classes = () => {
             </div>
 
             <div className="modal-content">
-              <div className="teacher-subject-management">
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">Professor</label>
-                    <select
-                      className="form-select"
-                      value={selectedTeacher}
-                      onChange={(e) => setSelectedTeacher(e.target.value)}
-                    >
-                      <option value="">Selecione um professor</option>
-                      {teachers.map(teacher => (
-                        <option key={teacher.id} value={teacher.id}>{teacher.fullName}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Disciplina</label>
-                    <select
-                      className="form-select"
-                      value={selectedSubject}
-                      onChange={(e) => setSelectedSubject(e.target.value)}
-                    >
-                      <option value="">Selecione uma disciplina</option>
-                      {subjects.map(subject => (
-                        <option key={subject.id} value={subject.id}>{subject.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <button 
-                    className="btn btn-primary add-button"
-                    onClick={addTeacherSubjectToClass}
+              {error && (
+                <div className="alert alert-error">
+                  {error}
+                </div>
+              )}
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Professor</label>
+                  <select
+                    className="form-select"
+                    value={selectedTeacher}
+                    onChange={(e) => setSelectedTeacher(e.target.value)}
                   >
-                    Vincular
-                  </button>
+                    <option value="">Selecione um professor</option>
+                    {teachers.map((teacher) => (
+                      <option key={teacher.id} value={teacher.id}>
+                        {teacher.fullName}
+                      </option>
+                    ))}
+                  </select>
                 </div>
+                <div className="form-group">
+                  <label className="form-label">Disciplina</label>
+                  <select
+                    className="form-select"
+                    value={selectedSubject}
+                    onChange={(e) => setSelectedSubject(e.target.value)}
+                  >
+                    <option value="">Selecione uma disciplina</option>
+                    {subjects.map((subject) => (
+                      <option key={subject.id} value={subject.id}>
+                        {subject.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <button 
+                  className="btn btn-primary"
+                  onClick={addTeacherSubjectToClass}
+                  disabled={!selectedTeacher || !selectedSubject}
+                >
+                  Vincular
+                </button>
+              </div>
 
-                <h3>Vinculações Existentes</h3>
-                <div className="teacher-subject-list">
-                  {classTeacherSubjects.length > 0 ? (
-                    classTeacherSubjects.map(item => (
-                      <div key={item.id} className="teacher-subject-item">
-                        <span>
-                          {teachers.find(t => t.id === item.teacherId)?.fullName || 'Professor Desconhecido'} -
-                          {subjects.find(s => s.id === item.subjectId)?.name || 'Disciplina Desconhecida'}
-                        </span>
-                        <button 
-                          className="btn btn-sm btn-danger"
-                          onClick={() => removeTeacherSubjectFromClass(item.teacherId, item.subjectId)}
-                        >
-                          Remover
-                        </button>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="no-items">Nenhuma vinculação encontrada para esta turma.</p>
-                  )}
-                </div>
+              <h3>Vinculações Existentes</h3>
+              <div className="assignments-list">
+                {classTeacherSubjects.length > 0 ? (
+                  classTeacherSubjects.map((assignment) => (
+                    <div key={`${assignment.teacherId}-${assignment.subjectId}`} className="assignment-item">
+                      <span>
+                        {assignment.Teacher?.fullName || 'Professor Desconhecido'} - 
+                        {assignment.Subject?.name || 'Disciplina Desconhecida'}
+                      </span>
+                      <button 
+                        className="btn btn-sm btn-danger"
+                        onClick={() => removeTeacherSubjectFromClass(assignment.teacherId, assignment.subjectId)}
+                      >
+                        Remover
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <p>Nenhuma vinculação de professor-disciplina para esta turma.</p>
+                )}
               </div>
             </div>
           </div>
