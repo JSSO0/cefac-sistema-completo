@@ -5,11 +5,11 @@ const { User, Student, Teacher } = require('../models');
 const router = express.Router();
 
 // Login
+// Login
 router.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body;
 
-    // Check for root user
     const ROOT_USER = {
       username: "admin",
       password: "senhaForte123"
@@ -32,7 +32,6 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Check database users
     const user = await User.findOne({ 
       where: { username },
       include: [
@@ -50,11 +49,15 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Credenciais inválidas' });
     }
 
-    const token = jwt.sign(
-      { userId: user.id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: '24h' }
-    );
+    const tokenPayload = {
+      userId: user.id,
+      role: user.role,
+      teacherProfile: user.teacherProfile ? { id: user.teacherProfile.id } : undefined
+    };
+
+    const token = jwt.sign(tokenPayload, process.env.JWT_SECRET, {
+      expiresIn: '24h'
+    });
 
     res.json({
       token,

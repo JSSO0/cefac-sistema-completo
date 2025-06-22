@@ -66,64 +66,41 @@ router.get('/', auth(), async (req, res) => {
   }
 });
 
-// POST /api/attendance - Criar registro individual de frequência
+// REFATORADO - attendance.js (parcial)
 router.post('/', auth('admin', 'coordenador', 'teacher'), async (req, res) => {
   try {
-    const {
-      studentId,
-      classId,
-      subjectId,
-      date,
-      present,
-      justification
-    } = req.body;
-    const teacherId = req.user.teacherProfile.id;
-    const isAuthorized = await TeacherClassSubject.findOne({
-      where: {
-        teacherId,
-        classId,
-        subjectId
+    const { studentId, classId, subjectId, date, present, justification } = req.body;
+
+    let teacherId;
+    if (req.user.role === 'teacher') {
+      console.log(req.user);
+      console.log(req.user.teacherProfile);
+      console.log(req.user.teacherProfile.id);
+      teacherId = req.user.teacherProfile?.id;
+      if (!teacherId) {
+        return res.status(403).json({ error: "Perfil de professor não encontrado para o usuário logado." });
       }
+    } else if (req.user.role === 'admin') {
+      // opcional: extraia teacherId de um campo do body para manter rastreabilidade
+      teacherId = req.body.teacherId || null;
+    } else {
+      return res.status(403).json({ error: "Acesso não autorizado." });
+    }
+
+    const isAuthorized = await TeacherClassSubject.findOne({
+      where: { teacherId, classId, subjectId }
     });
 
     if (!isAuthorized && req.user.role !== "admin") {
-      return res.status(403).json({
-        error: "Professor não autorizado a registrar frequência para esta turma/disciplina"
-      });
+      return res.status(403).json({ error: "Professor não autorizado a registrar frequência para esta turma/disciplina" });
     }
 
-    const existingRecord = await Attendance.findOne({
-      where: {
-        studentId,
-        classId,
-        subjectId,
-        date
-      }
-    });
+    const existingRecord = await Attendance.findOne({ where: { studentId, classId, subjectId, date } });
+    const values = { present, justification: justification || null };
 
     if (existingRecord) {
-      await existingRecord.update({
-        present,
-        justification: justification || null
-      });
-
-      const updatedRecord = await Attendance.findByPk(existingRecord.id, {
-        include: [{
-            model: Student,
-            attributes: ["id", "fullName"]
-          },
-          {
-            model: Class,
-            attributes: ['id', 'name', 'grade']
-          },
-          {
-            model: Subject,
-            attributes: ['id', 'name', 'code']
-          }
-        ]
-      });
-
-      return res.json(updatedRecord);
+      await existingRecord.update(values);
+      return res.json(await Attendance.findByPk(existingRecord.id));
     }
 
     const attendanceRecord = await Attendance.create({
@@ -133,139 +110,94 @@ router.post('/', auth('admin', 'coordenador', 'teacher'), async (req, res) => {
       date,
       present,
       justification: justification || null,
-      teacherId: teacherId
+      teacherId
     });
 
-    const newRecord = await Attendance.findByPk(attendanceRecord.id, {
-      include: [{
-          model: Student,
-          attributes: ["id", "fullName"]
-        },
-        {
-          model: Class,
-          attributes: ['id', 'name', 'grade']
-        },
-        {
-          model: Subject,
-          attributes: ['id', 'name', 'code']
-        }
-      ]
-    });
-
-    res.status(201).json(newRecord);
+    return res.status(201).json(await Attendance.findByPk(attendanceRecord.id));
   } catch (error) {
     console.error('Erro ao criar registro de frequência:', error);
-    res.status(500).json({
-      error: 'Erro interno do servidor'
-    });
+    res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });
 
-// POST /api/attendance/bulk - Criar/atualizar registros em lote
 router.post('/bulk', auth('admin', 'teacher'), async (req, res) => {
   try {
-    const teacherId = req.user.teacherProfile.id;
-    const {
-      attendanceList
-    } = req.body;
+    const { attendanceList } = req.body;
 
     if (!Array.isArray(attendanceList) || attendanceList.length === 0) {
-      return res.status(400).json({
-        error: 'Lista de frequência é obrigatória'
-      });
+      return res.status(400).json({ error: 'Lista de frequência é obrigatória' });
+    }
+
+    let teacherId;
+    if (req.user.role === 'teacher') {
+      teacherId = req.user.teacherProfile?.id;
+      if (!teacherId) {
+        return res.status(403).json({ error: "Perfil de professor não encontrado para o usuário logado." });
+      }
+    } else if (req.user.role === 'admin') {
+      teacherId = req.body.teacherId || null; // opcional para admin
+    } else {
+      return res.status(403).json({ error: 'Acesso não autorizado' });
     }
 
     const results = [];
 
-    for (const attendance of attendanceList) {
-      const {
-        studentId,
-        classId,
-        subjectId,
-        date,
-        present,
-        justification
-      } = attendance;
-      // Verificar se o professor está vinculado a esta turma e disciplina para cada registro
+    for (const entry of attendanceList) {
+      const { studentId, classId, subjectId, date, present, justification } = entry;
+
       const isAuthorized = await TeacherClassSubject.findOne({
-        where: {
-          teacherId,
-          classId,
-          subjectId
-        }
+        where: { teacherId, classId, subjectId }
       });
 
-      if (!isAuthorized && req.user.role !== "admin") {
-        // Se não autorizado, pula este registro ou retorna erro, dependendo da política
-        console.warn(`Professor ${teacherId} não autorizado para ${classId}/${subjectId}. Pulando registro.`);
-        continue; // Ou retorne um erro específico para este registro
-      }
+      if (!isAuthorized && req.user.role !== 'admin') continue;
 
-      const existingRecord = await Attendance.findOne({
-        where: {
-          studentId,
-          classId,
-          subjectId,
-          date
-        }
+      const existing = await Attendance.findOne({
+        where: { studentId, classId, subjectId, date }
       });
 
-      if (existingRecord) {
-        await existingRecord.update({
-          present,
-          justification: justification || null
-        });
-        results.push(existingRecord);
+      if (existing) {
+        await existing.update({ present, justification: justification || null });
+        results.push(existing);
       } else {
-        const newRecord = await Attendance.create({
+        const created = await Attendance.create({
           studentId,
           classId,
           subjectId,
           date,
           present,
-          justification: justification || null
+          justification: justification || null,
+          teacherId
         });
-        results.push(newRecord);
+        results.push(created);
       }
     }
 
-    res.json({
-      message: 'Frequência salva com sucesso',
-      count: results.length,
-      records: results
-    });
+    res.json({ message: 'Frequência salva com sucesso', count: results.length, records: results });
   } catch (error) {
     console.error('Erro ao salvar frequência em lote:', error);
-    res.status(500).json({
-      error: 'Erro interno do servidor'
-    });
+    res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });
 
-// PUT /api/attendance/:id - Atualizar registro de frequência
 router.put('/:id', auth('admin', 'teacher'), async (req, res) => {
   try {
-    const {
-      id
-    } = req.params;
-    const {
-      present,
-      justification
-    } = req.body;
-const teacherId = req.user.teacherProfile.id;
-    const attendanceRecord = await Attendance.findByPk(id);
+    const { id } = req.params;
+    const { present, justification } = req.body;
 
+    const attendanceRecord = await Attendance.findByPk(id);
     if (!attendanceRecord) {
-      return res.status(404).json({
-        error: 'Registro de frequência não encontrado'
-      });
+      return res.status(404).json({ error: 'Registro de frequência não encontrado' });
     }
 
-        // Verificar se o professor que está atualizando é o mesmo que registrou ou é admin
-    if (attendanceRecord.teacherId !== teacherId && req.user.role !== "admin") {
-      return res.status(403).json({
-        error: "Você não tem permissão para atualizar este registro de frequência"
-      });
+    let teacherId = null;
+    if (req.user.role === 'teacher') {
+      teacherId = req.user.teacherProfile?.id;
+      if (!teacherId) {
+        return res.status(403).json({ error: "Perfil de professor não encontrado para o usuário logado." });
+      }
+      if (attendanceRecord.teacherId !== teacherId) {
+        return res.status(403).json({ error: "Você não tem permissão para atualizar este registro de frequência" });
+      }
     }
 
     await attendanceRecord.update({
@@ -274,55 +206,35 @@ const teacherId = req.user.teacherProfile.id;
     });
 
     const updatedRecord = await Attendance.findByPk(id, {
-      include: [{
-          model: Student,
-          attributes: ["id", "fullName"]
-        },
-        {
-          model: Class,
-          attributes: ['id', 'name', 'grade']
-        },
-        {
-          model: Subject,
-          attributes: ['id', 'name', 'code']
-        }
+      include: [
+        { model: Student, attributes: ["id", "fullName"] },
+        { model: Class, attributes: ['id', 'name', 'grade'] },
+        { model: Subject, attributes: ['id', 'name', 'code'] }
       ]
     });
 
     res.json(updatedRecord);
   } catch (error) {
     console.error('Erro ao atualizar registro de frequência:', error);
-    res.status(500).json({
-      error: 'Erro interno do servidor'
-    });
+    res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });
 
-// DELETE /api/attendance/:id - Deletar registro de frequência
 router.delete('/:id', auth('admin'), async (req, res) => {
   try {
-    const {
-      id
-    } = req.params;
+    const { id } = req.params;
 
     const attendanceRecord = await Attendance.findByPk(id);
-
     if (!attendanceRecord) {
-      return res.status(404).json({
-        error: 'Registro de frequência não encontrado'
-      });
+      return res.status(404).json({ error: 'Registro de frequência não encontrado' });
     }
 
     await attendanceRecord.destroy();
 
-    res.json({
-      message: 'Registro de frequência deletado com sucesso'
-    });
+    res.json({ message: 'Registro de frequência deletado com sucesso' });
   } catch (error) {
     console.error('Erro ao deletar registro de frequência:', error);
-    res.status(500).json({
-      error: 'Erro interno do servidor'
-    });
+    res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });
 
@@ -502,27 +414,36 @@ router.get('/report', auth('admin', 'teacher'), async (req, res) => {
   }
 });
 
-// GET /api/attendance/teacher-assignments - Obter turmas e disciplinas atribuídas ao professor logado
 router.get("/teacher-assignments", auth("teacher", "admin"), async (req, res) => {
   try {
-    const teacherId = req.user.teacherProfile.id; // ID do professor logado
+    let teacherIdToQuery;
+
+    if (req.user.role === "teacher") {
+      console.log(req.user);
+      console.log(req.user.teacherProfile);
+      console.log(req.user.teacherProfile.id);
+      teacherIdToQuery = req.user.id;
+      if (!teacherIdToQuery) {
+        return res.status(403).json({ error: "Perfil de professor não encontrado para o usuário logado." });
+      }
+    } else if (req.user.role === "admin") {
+      const { teacherId } = req.query;
+      if (!teacherId) {
+        return res.status(400).json({ error: "Para administradores, o 'teacherId' deve ser fornecido como parâmetro de consulta (ex: /teacher-assignments?teacherId=XYZ)." });
+      }
+      teacherIdToQuery = teacherId;
+    } else {
+      return res.status(403).json({ error: "Acesso não autorizado ou perfil de usuário inválido para esta operação." });
+    }
 
     const assignments = await TeacherClassSubject.findAll({
-      where: {
-        teacherId
-      },
-      include: [{
-          model: Class,
-          attributes: ["id", "name", "grade", "shift", "year"]
-        },
-        {
-          model: Subject,
-          attributes: ["id", "name", "code"]
-        }
+      where: { teacherId: req.user.id },
+      include: [
+        { model: Class, attributes: ["id", "name", "grade", "shift", "year"] },
+        { model: Subject, attributes: ["id", "name", "code"] }
       ]
     });
 
-    // Formatar a resposta para ser mais fácil de consumir no frontend
     const formattedAssignments = assignments.map(assignment => ({
       class: assignment.Class,
       subject: assignment.Subject
@@ -531,9 +452,7 @@ router.get("/teacher-assignments", auth("teacher", "admin"), async (req, res) =>
     res.json(formattedAssignments);
   } catch (error) {
     console.error("Erro ao buscar atribuições do professor:", error);
-    res.status(500).json({
-      error: "Erro interno do servidor"
-    });
+    res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });
 
