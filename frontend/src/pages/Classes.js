@@ -12,6 +12,7 @@ const Classes = () => {
   const [error, setError] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [showStudentsModal, setShowStudentsModal] = useState(false);
+  const [showTeacherSubjectModal, setShowTeacherSubjectModal] = useState(false); // Novo estado para o modal
   const [editingClass, setEditingClass] = useState(null);
   const [selectedClass, setSelectedClass] = useState(null);
   const [formData, setFormData] = useState({
@@ -21,6 +22,9 @@ const Classes = () => {
     year: new Date().getFullYear(),
     capacity: ''
   });
+  const [selectedTeacher, setSelectedTeacher] = useState('');
+  const [selectedSubject, setSelectedSubject] = useState('');
+  const [classTeacherSubjects, setClassTeacherSubjects] = useState([]);
 
   const { user } = useAuth();
 
@@ -33,7 +37,9 @@ const Classes = () => {
 
   const fetchClasses = async () => {
     try {
-      const response = await axios.get('http://localhost:3001/api/classes');
+      const response = await axios.get('http://localhost:3001/api/classes', {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
       setClasses(response.data);
     } catch (error) {
       setError('Erro ao carregar turmas');
@@ -45,7 +51,9 @@ const Classes = () => {
 
   const fetchTeachers = async () => {
     try {
-      const response = await axios.get('http://localhost:3001/api/teachers');
+      const response = await axios.get('http://localhost:3001/api/teachers', {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
       setTeachers(response.data.filter(t => t.isActive));
     } catch (error) {
       console.error('Erro ao carregar professores:', error);
@@ -54,7 +62,9 @@ const Classes = () => {
 
   const fetchSubjects = async () => {
     try {
-      const response = await axios.get('http://localhost:3001/api/subjects');
+      const response = await axios.get('http://localhost:3001/api/subjects', {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
       setSubjects(response.data.filter(s => s.isActive));
     } catch (error) {
       console.error('Erro ao carregar disciplinas:', error);
@@ -63,10 +73,24 @@ const Classes = () => {
 
   const fetchStudents = async () => {
     try {
-      const response = await axios.get('http://localhost:3001/api/students');
+      const response = await axios.get('http://localhost:3001/api/students', {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
       setStudents(response.data.filter(s => s.isActive));
     } catch (error) {
       console.error('Erro ao carregar alunos:', error);
+    }
+  };
+
+  const fetchTeacherClassSubjects = async (classId) => {
+    try {
+      const response = await axios.get(`http://localhost:3001/api/teachers/class-subjects/${classId}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      setClassTeacherSubjects(response.data);
+    } catch (error) {
+      console.error('Erro ao carregar vinculações professor-turma-disciplina:', error);
+      setClassTeacherSubjects([]);
     }
   };
 
@@ -76,9 +100,13 @@ const Classes = () => {
 
     try {
       if (editingClass) {
-        await axios.put(`http://localhost:3001/api/classes/${editingClass.id}`, formData);
+        await axios.put(`http://localhost:3001/api/classes/${editingClass.id}`, formData, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        });
       } else {
-        await axios.post('http://localhost:3001/api/classes', formData);
+        await axios.post('http://localhost:3001/api/classes', formData, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        });
       }
       
       fetchClasses();
@@ -115,7 +143,9 @@ const Classes = () => {
   const handleDelete = async (classId) => {
     if (window.confirm('Tem certeza que deseja desativar esta turma?')) {
       try {
-        await axios.delete(`http://localhost:3001/api/classes/${classId}`);
+        await axios.delete(`http://localhost:3001/api/classes/${classId}`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        });
         fetchClasses();
       } catch (error) {
         setError('Erro ao desativar turma');
@@ -128,9 +158,16 @@ const Classes = () => {
     setShowStudentsModal(true);
   };
 
+  const handleManageTeacherSubjects = (classItem) => {
+    setSelectedClass(classItem);
+    fetchTeacherClassSubjects(classItem.id);
+    setShowTeacherSubjectModal(true);
+  };
+
   const addStudentToClass = async (studentId) => {
     try {
-      await axios.post(`http://localhost:3001/api/classes/${selectedClass.id}/students/${studentId}`);
+      await axios.post(`http://localhost:3001/api/classes/${selectedClass.id}/students/${studentId}`, {},
+        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
       fetchClasses();
     } catch (error) {
       setError('Erro ao adicionar aluno à turma');
@@ -139,10 +176,41 @@ const Classes = () => {
 
   const removeStudentFromClass = async (studentId) => {
     try {
-      await axios.delete(`http://localhost:3001/api/classes/${selectedClass.id}/students/${studentId}`);
+      await axios.delete(`http://localhost:3001/api/classes/${selectedClass.id}/students/${studentId}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
       fetchClasses();
     } catch (error) {
       setError('Erro ao remover aluno da turma');
+    }
+  };
+
+  const addTeacherSubjectToClass = async () => {
+    if (!selectedTeacher || !selectedSubject) {
+      setError('Selecione um professor e uma disciplina.');
+      return;
+    }
+    try {
+      await axios.post(`http://localhost:3001/api/classes/${selectedClass.id}/teachers/${selectedTeacher}/subjects/${selectedSubject}`, {},
+        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+      fetchTeacherClassSubjects(selectedClass.id);
+      setSelectedTeacher('');
+      setSelectedSubject('');
+      setError('');
+    } catch (error) {
+      setError(error.response?.data?.error || 'Erro ao vincular professor à disciplina na turma');
+    }
+  };
+
+  const removeTeacherSubjectFromClass = async (teacherId, subjectId) => {
+    try {
+      await axios.delete(`http://localhost:3001/api/classes/${selectedClass.id}/teachers/${teacherId}/subjects/${subjectId}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      fetchTeacherClassSubjects(selectedClass.id);
+      setError('');
+    } catch (error) {
+      setError(error.response?.data?.error || 'Erro ao desvincular professor da disciplina na turma');
     }
   };
 
@@ -229,6 +297,12 @@ const Classes = () => {
                         onClick={() => handleManageStudents(classItem)}
                       >
                         Alunos
+                      </button>
+                      <button 
+                        className="btn btn-sm btn-info"
+                        onClick={() => handleManageTeacherSubjects(classItem)}
+                      >
+                        Prof. / Disc.
                       </button>
                       {classItem.isActive && (
                         <button 
@@ -416,9 +490,94 @@ const Classes = () => {
           </div>
         </div>
       )}
+
+      {/* Modal de Gerenciar Professores/Disciplinas */}
+      {showTeacherSubjectModal && selectedClass && (
+        <div className="modal-overlay">
+          <div className="modal modal-large">
+            <div className="modal-header">
+              <h2>Gerenciar Professores/Disciplinas - {selectedClass.name}</h2>
+              <button 
+                className="modal-close"
+                onClick={() => {
+                  setShowTeacherSubjectModal(false);
+                  setSelectedClass(null);
+                  setSelectedTeacher('');
+                  setSelectedSubject('');
+                  setError('');
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="modal-content">
+              <div className="teacher-subject-management">
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Professor</label>
+                    <select
+                      className="form-select"
+                      value={selectedTeacher}
+                      onChange={(e) => setSelectedTeacher(e.target.value)}
+                    >
+                      <option value="">Selecione um professor</option>
+                      {teachers.map(teacher => (
+                        <option key={teacher.id} value={teacher.id}>{teacher.fullName}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Disciplina</label>
+                    <select
+                      className="form-select"
+                      value={selectedSubject}
+                      onChange={(e) => setSelectedSubject(e.target.value)}
+                    >
+                      <option value="">Selecione uma disciplina</option>
+                      {subjects.map(subject => (
+                        <option key={subject.id} value={subject.id}>{subject.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <button 
+                    className="btn btn-primary add-button"
+                    onClick={addTeacherSubjectToClass}
+                  >
+                    Vincular
+                  </button>
+                </div>
+
+                <h3>Vinculações Existentes</h3>
+                <div className="teacher-subject-list">
+                  {classTeacherSubjects.length > 0 ? (
+                    classTeacherSubjects.map(item => (
+                      <div key={item.id} className="teacher-subject-item">
+                        <span>
+                          {teachers.find(t => t.id === item.teacherId)?.fullName || 'Professor Desconhecido'} -
+                          {subjects.find(s => s.id === item.subjectId)?.name || 'Disciplina Desconhecida'}
+                        </span>
+                        <button 
+                          className="btn btn-sm btn-danger"
+                          onClick={() => removeTeacherSubjectFromClass(item.teacherId, item.subjectId)}
+                        >
+                          Remover
+                        </button>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="no-items">Nenhuma vinculação encontrada para esta turma.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 export default Classes;
+
 
