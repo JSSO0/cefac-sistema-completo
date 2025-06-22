@@ -177,11 +177,9 @@ router.post('/', auth('admin', 'coordenador', 'teacher'), async (req, res) => {
 // POST /api/attendance/bulk - Criar/atualizar registros em lote
 router.post('/bulk', auth('admin', 'teacher'), async (req, res) => {
   try {
-
-    const {
-      attendanceList
-    } = req.body;
+    const { attendanceList } = req.body;
     let teacherId = null;
+
     if (req.user.role === 'teacher') {
       if (!req.user.teacherProfile || !req.user.teacherProfile.id) {
         return res.status(403).json({
@@ -208,8 +206,10 @@ router.post('/bulk', auth('admin', 'teacher'), async (req, res) => {
         present,
         justification
       } = attendance;
-      // Verificar se o professor está vinculado a esta turma e disciplina para cada registro
- if (req.user.role === 'teacher') {
+
+      const status = present ? 'present' : (justification ? 'justified' : 'absent');
+
+      if (req.user.role === 'teacher') {
         const isAuthorized = await TeacherClassSubject.findOne({
           where: {
             teacherId,
@@ -219,7 +219,6 @@ router.post('/bulk', auth('admin', 'teacher'), async (req, res) => {
         });
 
         if (!isAuthorized) {
-          // Se não autorizado, pula este registro ou retorna um erro específico para este registro
           console.warn(`Professor ${teacherId} não autorizado para ${classId}/${subjectId}. Pulando registro.`);
           continue;
         }
@@ -236,7 +235,7 @@ router.post('/bulk', auth('admin', 'teacher'), async (req, res) => {
 
       if (existingRecord) {
         await existingRecord.update({
-          present,
+          status,
           justification: justification || null
         });
         results.push(existingRecord);
@@ -246,9 +245,9 @@ router.post('/bulk', auth('admin', 'teacher'), async (req, res) => {
           classId,
           subjectId,
           date,
-          present,
+          status,
           justification: justification || null,
-          teacherId: teacherId //
+          teacherId
         });
         results.push(newRecord);
       }

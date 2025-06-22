@@ -99,7 +99,7 @@ const Attendance = () => {
       
       records.forEach(record => {
         attendanceMap[record.studentId] = {
-          present: record.present,
+          present: record.status === 'present',
           justification: record.justification || '',
           id: record.id
         };
