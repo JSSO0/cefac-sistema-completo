@@ -46,7 +46,7 @@ module.exports = (sequelize) => {
     status: {
       type: DataTypes.ENUM('present', 'absent', 'late', 'justified'),
       allowNull: false,
-      defaultValue: 'present'
+      //defaultValue: 'present'
     },
     justification: {
       type: DataTypes.TEXT,

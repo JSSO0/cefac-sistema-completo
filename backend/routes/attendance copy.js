@@ -1,4 +1,4 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
 const {
   User,
@@ -9,10 +9,10 @@ const {
   Attendance,
   TeacherClassSubject
 } = require("../models");
-const auth = require('../middleware/auth');
+const auth = require("../middleware/auth");
 
 // GET /api/attendance - Listar registros de frequência com filtros
-router.get('/', auth(), async (req, res) => {
+router.get("/", auth.authenticateToken, async (req, res) => {
   try {
     const {
       classId,
@@ -32,7 +32,7 @@ router.get('/', auth(), async (req, res) => {
 
     if (startDate && endDate) {
       whereClause.date = {
-        [require('sequelize').Op.between]: [startDate, endDate]
+        [require("sequelize").Op.between]: [startDate, endDate]
       };
     }
 
@@ -40,34 +40,34 @@ router.get('/', auth(), async (req, res) => {
       where: whereClause,
       include: [{
           model: Student,
-          attributes: ["id", "fullName"]
+          attributes: ["id", "fullName", "enrollmentNumber"]
         },
         {
           model: Class,
-          attributes: ['id', 'name', 'grade']
+          attributes: ["id", "name", "grade"]
         },
         {
           model: Subject,
-          attributes: ['id', 'name', 'code']
+          attributes: ["id", "name", "code"]
         }
       ],
       order: [
-        ['date', 'DESC'],
-        ['createdAt', 'DESC']
+        ["date", "DESC"],
+        ["createdAt", "DESC"]
       ]
     });
 
     res.json(attendanceRecords);
   } catch (error) {
-    console.error('Erro ao buscar registros de frequência:', error);
+    console.error("Erro ao buscar registros de frequência:", error);
     res.status(500).json({
-      error: 'Erro interno do servidor'
+      error: "Erro interno do servidor"
     });
   }
 });
 
 // POST /api/attendance - Criar registro individual de frequência
-router.post('/', auth('admin', 'coordenador', 'teacher'), async (req, res) => {
+router.post("/", auth.authenticateToken, auth.authorizeRoles("teacher", "admin"), async (req, res) => {
   try {
     const {
       studentId,
@@ -77,8 +77,8 @@ router.post('/', auth('admin', 'coordenador', 'teacher'), async (req, res) => {
       present,
       justification
     } = req.body;
-    
- let teacherId = null;
+
+    let teacherId = null;
     if (req.user.role === 'teacher') {
       if (!req.user.teacherProfile || !req.user.teacherProfile.id) {
         return res.status(403).json({
@@ -105,6 +105,7 @@ router.post('/', auth('admin', 'coordenador', 'teacher'), async (req, res) => {
       }
     }
 
+    // Verificar se já existe registro para esta combinação
     const existingRecord = await Attendance.findOne({
       where: {
         studentId,
@@ -115,6 +116,7 @@ router.post('/', auth('admin', 'coordenador', 'teacher'), async (req, res) => {
     });
 
     if (existingRecord) {
+      // Atualizar registro existente
       await existingRecord.update({
         present,
         justification: justification || null
@@ -123,15 +125,15 @@ router.post('/', auth('admin', 'coordenador', 'teacher'), async (req, res) => {
       const updatedRecord = await Attendance.findByPk(existingRecord.id, {
         include: [{
             model: Student,
-            attributes: ["id", "fullName"]
+            attributes: ["id", "fullName", "enrollmentNumber"]
           },
           {
             model: Class,
-            attributes: ['id', 'name', 'grade']
+            attributes: ["id", "name", "grade"]
           },
           {
             model: Subject,
-            attributes: ['id', 'name', 'code']
+            attributes: ["id", "name", "code"]
           }
         ]
       });
@@ -139,6 +141,7 @@ router.post('/', auth('admin', 'coordenador', 'teacher'), async (req, res) => {
       return res.json(updatedRecord);
     }
 
+    // Criar novo registro
     const attendanceRecord = await Attendance.create({
       studentId,
       classId,
@@ -146,41 +149,41 @@ router.post('/', auth('admin', 'coordenador', 'teacher'), async (req, res) => {
       date,
       present,
       justification: justification || null,
-      teacherId: teacherId
+      teacherId: teacherId // Registrar qual professor fez o registro
     });
 
     const newRecord = await Attendance.findByPk(attendanceRecord.id, {
       include: [{
           model: Student,
-          attributes: ["id", "fullName"]
+          attributes: ["id", "fullName", "enrollmentNumber"]
         },
         {
           model: Class,
-          attributes: ['id', 'name', 'grade']
+          attributes: ["id", "name", "grade"]
         },
         {
           model: Subject,
-          attributes: ['id', 'name', 'code']
+          attributes: ["id", "name", "code"]
         }
       ]
     });
 
     res.status(201).json(newRecord);
   } catch (error) {
-    console.error('Erro ao criar registro de frequência:', error);
+    console.error("Erro ao criar registro de frequência:", error);
     res.status(500).json({
-      error: 'Erro interno do servidor'
+      error: "Erro interno do servidor"
     });
   }
 });
 
 // POST /api/attendance/bulk - Criar/atualizar registros em lote
-router.post('/bulk', auth('admin', 'teacher'), async (req, res) => {
+router.post("/bulk", auth.authenticateToken, auth.authorizeRoles("teacher", "admin"), async (req, res) => {
   try {
-
     const {
       attendanceList
     } = req.body;
+
     let teacherId = null;
     if (req.user.role === 'teacher') {
       if (!req.user.teacherProfile || !req.user.teacherProfile.id) {
@@ -193,7 +196,7 @@ router.post('/bulk', auth('admin', 'teacher'), async (req, res) => {
 
     if (!Array.isArray(attendanceList) || attendanceList.length === 0) {
       return res.status(400).json({
-        error: 'Lista de frequência é obrigatória'
+        error: "Lista de frequência é obrigatória"
       });
     }
 
@@ -208,8 +211,9 @@ router.post('/bulk', auth('admin', 'teacher'), async (req, res) => {
         present,
         justification
       } = attendance;
+
       // Verificar se o professor está vinculado a esta turma e disciplina para cada registro
- if (req.user.role === 'teacher') {
+      if (req.user.role === 'teacher') {
         const isAuthorized = await TeacherClassSubject.findOne({
           where: {
             teacherId,
@@ -225,6 +229,7 @@ router.post('/bulk', auth('admin', 'teacher'), async (req, res) => {
         }
       }
 
+      // Verificar se já existe registro
       const existingRecord = await Attendance.findOne({
         where: {
           studentId,
@@ -235,12 +240,14 @@ router.post('/bulk', auth('admin', 'teacher'), async (req, res) => {
       });
 
       if (existingRecord) {
+        // Atualizar registro existente
         await existingRecord.update({
           present,
           justification: justification || null
         });
         results.push(existingRecord);
       } else {
+        // Criar novo registro
         const newRecord = await Attendance.create({
           studentId,
           classId,
@@ -248,27 +255,27 @@ router.post('/bulk', auth('admin', 'teacher'), async (req, res) => {
           date,
           present,
           justification: justification || null,
-          teacherId: teacherId //
+          teacherId: teacherId // Registrar qual professor fez o registro
         });
         results.push(newRecord);
       }
     }
 
     res.json({
-      message: 'Frequência salva com sucesso',
+      message: "Frequência salva com sucesso",
       count: results.length,
       records: results
     });
   } catch (error) {
-    console.error('Erro ao salvar frequência em lote:', error);
+    console.error("Erro ao salvar frequência em lote:", error);
     res.status(500).json({
-      error: 'Erro interno do servidor'
+      error: "Erro interno do servidor"
     });
   }
 });
 
 // PUT /api/attendance/:id - Atualizar registro de frequência
-router.put('/:id', auth('admin', 'teacher'), async (req, res) => {
+router.put("/:id", auth.authenticateToken, auth.authorizeRoles("teacher", "admin"), async (req, res) => {
   try {
     const {
       id
@@ -277,7 +284,7 @@ router.put('/:id', auth('admin', 'teacher'), async (req, res) => {
       present,
       justification
     } = req.body;
-    
+
     let teacherId = null;
     if (req.user.role === 'teacher') {
       if (!req.user.teacherProfile || !req.user.teacherProfile.id) {
@@ -292,7 +299,7 @@ router.put('/:id', auth('admin', 'teacher'), async (req, res) => {
 
     if (!attendanceRecord) {
       return res.status(404).json({
-        error: 'Registro de frequência não encontrado'
+        error: "Registro de frequência não encontrado"
       });
     }
 
@@ -311,30 +318,30 @@ router.put('/:id', auth('admin', 'teacher'), async (req, res) => {
     const updatedRecord = await Attendance.findByPk(id, {
       include: [{
           model: Student,
-          attributes: ["id", "fullName"]
+          attributes: ["id", "fullName", "enrollmentNumber"]
         },
         {
           model: Class,
-          attributes: ['id', 'name', 'grade']
+          attributes: ["id", "name", "grade"]
         },
         {
           model: Subject,
-          attributes: ['id', 'name', 'code']
+          attributes: ["id", "name", "code"]
         }
       ]
     });
 
     res.json(updatedRecord);
   } catch (error) {
-    console.error('Erro ao atualizar registro de frequência:', error);
+    console.error("Erro ao atualizar registro de frequência:", error);
     res.status(500).json({
-      error: 'Erro interno do servidor'
+      error: "Erro interno do servidor"
     });
   }
 });
 
 // DELETE /api/attendance/:id - Deletar registro de frequência
-router.delete('/:id', auth('admin'), async (req, res) => {
+router.delete("/:id", auth.authenticateToken, auth.authorizeRoles("admin"), async (req, res) => {
   try {
     const {
       id
@@ -344,25 +351,25 @@ router.delete('/:id', auth('admin'), async (req, res) => {
 
     if (!attendanceRecord) {
       return res.status(404).json({
-        error: 'Registro de frequência não encontrado'
+        error: "Registro de frequência não encontrado"
       });
     }
 
     await attendanceRecord.destroy();
 
     res.json({
-      message: 'Registro de frequência deletado com sucesso'
+      message: "Registro de frequência deletado com sucesso"
     });
   } catch (error) {
-    console.error('Erro ao deletar registro de frequência:', error);
+    console.error("Erro ao deletar registro de frequência:", error);
     res.status(500).json({
-      error: 'Erro interno do servidor'
+      error: "Erro interno do servidor"
     });
   }
 });
 
 // GET /api/attendance/stats/:studentId - Estatísticas de frequência do aluno
-router.get('/stats/:studentId', auth(), async (req, res) => {
+router.get("/stats/:studentId", auth.authenticateToken, async (req, res) => {
   try {
     const {
       studentId
@@ -383,7 +390,7 @@ router.get('/stats/:studentId', auth(), async (req, res) => {
 
     if (startDate && endDate) {
       whereClause.date = {
-        [require('sequelize').Op.between]: [startDate, endDate]
+        [require("sequelize").Op.between]: [startDate, endDate]
       };
     }
 
@@ -391,11 +398,11 @@ router.get('/stats/:studentId', auth(), async (req, res) => {
       where: whereClause,
       include: [{
           model: Subject,
-          attributes: ['id', 'name', 'code']
+          attributes: ["id", "name", "code"]
         },
         {
           model: Class,
-          attributes: ['id', 'name', 'grade']
+          attributes: ["id", "name", "grade"]
         }
       ]
     });
@@ -405,6 +412,7 @@ router.get('/stats/:studentId', auth(), async (req, res) => {
     const absentClasses = totalClasses - presentClasses;
     const attendancePercentage = totalClasses > 0 ? ((presentClasses / totalClasses) * 100).toFixed(2) : 0;
 
+    // Estatísticas por disciplina
     const subjectStats = {};
     attendanceRecords.forEach(record => {
       const subjectKey = record.Subject.id;
@@ -440,15 +448,15 @@ router.get('/stats/:studentId', auth(), async (req, res) => {
       records: attendanceRecords
     });
   } catch (error) {
-    console.error('Erro ao buscar estatísticas de frequência:', error);
+    console.error("Erro ao buscar estatísticas de frequência:", error);
     res.status(500).json({
-      error: 'Erro interno do servidor'
+      error: "Erro interno do servidor"
     });
   }
 });
 
 // GET /api/attendance/report - Relatório de frequência
-router.get('/report', auth('admin', 'teacher'), async (req, res) => {
+router.get("/report", auth.authenticateToken, async (req, res) => {
   try {
     const {
       classId,
@@ -464,7 +472,7 @@ router.get('/report', auth('admin', 'teacher'), async (req, res) => {
 
     if (startDate && endDate) {
       whereClause.date = {
-        [require('sequelize').Op.between]: [startDate, endDate]
+        [require("sequelize").Op.between]: [startDate, endDate]
       };
     }
 
@@ -472,23 +480,24 @@ router.get('/report', auth('admin', 'teacher'), async (req, res) => {
       where: whereClause,
       include: [{
           model: Student,
-          attributes: ["id", "fullName"]
+          attributes: ["id", "fullName", "enrollmentNumber"]
         },
         {
           model: Class,
-          attributes: ['id', 'name', 'grade']
+          attributes: ["id", "name", "grade"]
         },
         {
           model: Subject,
-          attributes: ['id', 'name', 'code']
+          attributes: ["id", "name", "code"]
         }
       ],
       order: [
-        ['date', 'ASC'],
-        [Student, 'fullName', 'ASC']
+        ["date", "ASC"],
+        [Student, "fullName", "ASC"]
       ]
     });
 
+    // Agrupar por aluno
     const studentStats = {};
     attendanceRecords.forEach(record => {
       const studentKey = record.Student.id;
@@ -527,15 +536,15 @@ router.get('/report', auth('admin', 'teacher'), async (req, res) => {
       students: Object.values(studentStats)
     });
   } catch (error) {
-    console.error('Erro ao gerar relatório de frequência:', error);
+    console.error("Erro ao gerar relatório de frequência:", error);
     res.status(500).json({
-      error: 'Erro interno do servidor'
+      error: "Erro interno do servidor"
     });
   }
 });
 
 // GET /api/attendance/teacher-assignments - Obter turmas e disciplinas atribuídas ao professor logado
-router.get("/teacher-assignments", auth("teacher", "admin"), async (req, res) => {
+router.get("/teacher-assignments", auth.authenticateToken, auth.authorizeRoles("teacher", "admin"), async (req, res) => {
   try {
     // Certifique-se de que req.user.teacherProfile existe para professores
     if (req.user.role === 'teacher' && (!req.user.teacherProfile || !req.user.teacherProfile.id)) {

@@ -1,6 +1,6 @@
 // middleware/auth.js
 const jwt = require('jsonwebtoken');
-const { User } = require('../models');
+const { User, Teacher } = require('../models');
 
 const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -12,8 +12,10 @@ const authenticateToken = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findByPk(decoded.userId);
-
+    //const user = await User.findByPk(decoded.userId);
+    const user = await User.findByPk(decoded.userId, {
+      include: decoded.role === "teacher" ? [{ model: Teacher, as: "teacherProfile" }] : [],
+    });
     if (!user || !user.isActive) {
       return res.status(401).json({ error: 'Usuário inválido ou inativo' });
     }
