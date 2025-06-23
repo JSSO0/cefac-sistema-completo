@@ -377,31 +377,6 @@ const Teachers = () => {
                 </div>
               </div>
 
-              {/* Seção de Vinculação de Turmas e Disciplinas */}
-              <div className="form-group">
-                <label className="form-label">Vinculação de Turmas e Disciplinas</label>
-                <div className="assignments-list">
-                  {classes.map((cls) => (
-                    <div key={cls.id} className="assignment-class-group">
-                      <h4>{cls.name} ({cls.grade} - {cls.shift})</h4>
-                      <div className="assignment-subjects">
-                        {subjects.map((sub) => (
-                          <label key={sub.id} className="checkbox-label">
-                            <input
-                              type="checkbox"
-                              value={`${cls.id}-${sub.id}`}
-                              checked={isAssignmentSelected(cls.id, sub.id)}
-                              onChange={handleAssignmentChange}
-                            />
-                            {sub.name}
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
               <div className="modal-actions">
                 <button 
                   type="button" 

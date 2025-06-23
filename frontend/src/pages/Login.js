@@ -79,7 +79,7 @@ const Login = () => {
             disabled={loading}
           >
             {loading ? (
-              <div className="spinner"></div>
+              <div className="spinner d-flex justify-content-center align-items-center"></div>
             ) : (
               'Entrar'
             )}
@@ -87,8 +87,7 @@ const Login = () => {
         </form>
 
         <div className="login-footer">
-          <p>Usuário de teste: <strong>admin</strong></p>
-          <p>Senha de teste: <strong>senhaForte123</strong></p>
+        
         </div>
       </div>
     </div>

@@ -9,29 +9,6 @@ router.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body;
 
-    // Check for root user
-    const ROOT_USER = {
-      username: "admin",
-      password: "senhaForte123"
-    };
-
-    if (username === ROOT_USER.username && password === ROOT_USER.password) {
-      const token = jwt.sign(
-        { userId: 'root', role: 'admin' },
-        process.env.JWT_SECRET,
-        { expiresIn: '24h' }
-      );
-
-      return res.json({
-        token,
-        user: {
-          id: 'root',
-          username: ROOT_USER.username,
-          role: 'admin'
-        }
-      });
-    }
-
     // Check database users
     const user = await User.findOne({ 
       where: { username },
