@@ -70,7 +70,7 @@ const Classes = () => {
       console.error('Erro ao carregar disciplinas:', error);
     }
   };
-/*
+
   const fetchStudents = async () => {
     try {
       const response = await axios.get('http://localhost:3001/api/students', {
@@ -80,31 +80,7 @@ const Classes = () => {
     } catch (error) {
       console.error('Erro ao carregar alunos:', error);
     }
-  };*/
-
-const fetchStudents = async () => {
-  try {
-    const response = await axios.get('http://localhost:3001/api/students', {
-      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-    });
-    const allStudents = response.data.filter(s => s.isActive);
-
-    const checkResponse = await axios.post(`http://localhost:3001/api/classes/0/students/check-batch`, {
-      studentIds: allStudents.map(s => s.id)
-    }, {
-      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-    });
-
-    const enrolledIds = new Set(
-      checkResponse.data.filter(res => res.enrolled).map(res => res.studentId)
-    );
-
-    const filtered = allStudents.filter(s => !enrolledIds.has(s.id));
-    setStudents(filtered);
-  } catch (error) {
-    console.error('Erro ao carregar alunos disponíveis:', error);
-  }
-};
+  };
 
   const fetchTeacherClassSubjects = async (classId) => {
     try {
@@ -197,25 +173,6 @@ const fetchStudents = async () => {
       setError('Erro ao adicionar aluno à turma');
     }
   };
- const validateAndAddStudent = async (studentId) => {
-   try {
-     const { data } = await axios.post(`http://localhost:3001/api/classes/${selectedClass.id}/students/check-batch`, {
-       studentIds: [studentId]
-     }, {
-       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-     });
-
-     if (data[0]?.enrolled) {
-       alert('Aluno já está matriculado nesta turma.');
-       return;
-     }
-
-     await addStudentToClass(studentId);
-   } catch (error) {
-     console.error('Erro ao validar matrícula:', error);
-     alert('Erro ao validar matrícula.');
-   }
- };
   const removeStudentFromClass = async (studentId) => {
     try {
       await axios.delete(`http://localhost:3001/api/classes/${selectedClass.id}/students/${studentId}`, {
@@ -519,7 +476,7 @@ const fetchStudents = async () => {
                           <span>{student.fullName} ({student.enrollmentNumber})</span>
                           <button 
                             className="btn btn-sm btn-primary"
-                            onClick={() => validateAndAddStudent(student.id)}
+                            onClick={() => addStudentToClass(student.id)}
                           >
                             Adicionar
                           </button>
