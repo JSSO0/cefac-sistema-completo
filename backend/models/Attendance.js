@@ -1,4 +1,6 @@
-const { DataTypes } = require('sequelize');
+const {
+  DataTypes
+} = require('sequelize');
 
 module.exports = (sequelize) => {
   const Attendance = sequelize.define('Attendance', {
@@ -55,18 +57,20 @@ module.exports = (sequelize) => {
     notes: {
       type: DataTypes.TEXT,
       allowNull: true
+    },
+    lessonNumber: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 1
     }
   }, {
     tableName: 'attendance',
     timestamps: true,
-    indexes: [
-      {
-        unique: true,
-        fields: ['studentId', 'classId', 'subjectId', 'date']
-      }
-    ]
+    indexes: [{
+      unique: true,
+      fields: ['studentId', 'classId', 'subjectId', 'date', 'lessonNumber']
+    }]
   });
 
   return Attendance;
 };
-

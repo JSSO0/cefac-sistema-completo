@@ -15,8 +15,14 @@ const Attendance = () => {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [attendanceData, setAttendanceData] = useState({});
   const [teacherAssignments, setTeacherAssignments] = useState([]);
+   const [selectedLesson, setSelectedLesson] = useState(1);
 
   const { user } = useAuth();
+  useEffect(() => {
+    if (selectedClass && selectedSubject && selectedDate && selectedLesson) {
+      fetchAttendanceRecords();
+    }
+  }, [selectedClass, selectedSubject, selectedDate, selectedLesson]);
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -89,7 +95,8 @@ const Attendance = () => {
         params: {
           classId: selectedClass,
           subjectId: selectedSubject,
-          date: selectedDate
+          date: selectedDate,
+          lessonNumber: selectedLesson
         },
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
@@ -150,7 +157,8 @@ const Attendance = () => {
         subjectId: parseInt(selectedSubject),
         date: selectedDate,
         present: attendanceData[student.id]?.present ?? true,
-        justification: attendanceData[student.id]?.justification || ''
+        justification: attendanceData[student.id]?.justification || '',
+         lessonNumber: selectedLesson
       }));
 
       await axios.post('http://localhost:3001/api/attendance/bulk', {
@@ -239,6 +247,21 @@ const Attendance = () => {
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
           />
+        </div>
+         <div className="filter-group">
+          <label className="form-label">Aula *</label>
+          <select
+            value={selectedLesson}
+            onChange={e => setSelectedLesson(parseInt(e.target.value))}
+            className="form-select"
+          >
+            <option value={1}>1ª Aula</option>
+            <option value={2}>2ª Aula</option>
+            <option value={3}>3ª Aula</option>
+            <option value={4}>4ª Aula</option>
+             <option value={5}>5ª Aula</option>
+             <option value={6}>6ª Aula</option>
+          </select>
         </div>
       </div>
 

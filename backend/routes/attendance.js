@@ -22,13 +22,14 @@ router.get('/', auth(), async (req, res) => {
       startDate,
       endDate
     } = req.query;
-
+ const { lessonNumber } = req.query;
     let whereClause = {};
 
     if (classId) whereClause.classId = classId;
     if (subjectId) whereClause.subjectId = subjectId;
     if (studentId) whereClause.studentId = studentId;
     if (date) whereClause.date = date;
+    if (lessonNumber) whereClause.lessonNumber = lessonNumber;
 
     if (startDate && endDate) {
       whereClause.date = {
@@ -175,6 +176,7 @@ router.post('/', auth('admin', 'coordenador', 'teacher'), async (req, res) => {
 });
 
 // POST /api/attendance/bulk - Criar/atualizar registros em lote
+// POST /api/attendance/bulk - Criar/atualizar registros em lote
 router.post('/bulk', auth('admin', 'teacher'), async (req, res) => {
   try {
     const { attendanceList } = req.body;
@@ -203,9 +205,16 @@ router.post('/bulk', auth('admin', 'teacher'), async (req, res) => {
         classId,
         subjectId,
         date,
+        lessonNumber = 1, // Valor padrão caso não seja enviado
         present,
         justification
       } = attendance;
+
+      // Verificar se todos os campos obrigatórios estão presentes
+      if (!studentId || !classId || !subjectId || !date) {
+        console.warn('Registro incompleto ignorado:', attendance);
+        continue;
+      }
 
       const status = present ? 'present' : (justification ? 'justified' : 'absent');
 
@@ -224,32 +233,39 @@ router.post('/bulk', auth('admin', 'teacher'), async (req, res) => {
         }
       }
 
-      const existingRecord = await Attendance.findOne({
-        where: {
-          studentId,
-          classId,
-          subjectId,
-          date
-        }
-      });
+      try {
+        const existingRecord = await Attendance.findOne({
+          where: {
+            studentId,
+            classId,
+            subjectId,
+            date,
+            lessonNumber // Adicionado lessonNumber na busca
+          }
+        });
 
-      if (existingRecord) {
-        await existingRecord.update({
-          status,
-          justification: justification || null
-        });
-        results.push(existingRecord);
-      } else {
-        const newRecord = await Attendance.create({
-          studentId,
-          classId,
-          subjectId,
-          date,
-          status,
-          justification: justification || null,
-          teacherId
-        });
-        results.push(newRecord);
+        if (existingRecord) {
+          await existingRecord.update({
+            status,
+            justification: justification || null,
+            teacherId
+          });
+          results.push(existingRecord);
+        } else {
+          const newRecord = await Attendance.create({
+            studentId,
+            classId,
+            subjectId,
+            date,
+            lessonNumber, // Adicionado na criação
+            status,
+            justification: justification || null,
+            teacherId
+          });
+          results.push(newRecord);
+        }
+      } catch (recordError) {
+        console.error('Erro ao processar registro:', attendance, recordError);
       }
     }
 
