@@ -513,6 +513,118 @@ router.delete(
   }
 );
 
+// GET /api/classes/:classId/teacher-subjects
+router.get('/:classId/teacher-subjects', auth(), async (req, res) => {
+  try {
+    const { classId } = req.params;
+
+    const assignments = await TeacherClassSubject.findAll({
+      where: { classId },
+      include: [
+        {
+          model: require('../models').Teacher,
+          attributes: ['id', 'fullName']
+        },
+        {
+          model: require('../models').Subject,
+          attributes: ['id', 'name']
+        }
+      ]
+    });
+
+    res.json(assignments);
+  } catch (error) {
+    console.error('Erro ao buscar vinculações professor-disciplina:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// GET /api/classes/:classId/students/:studentId/check
+router.get('/:classId/students/:studentId/check', auth(), async (req, res) => {
+  try {
+    const { classId, studentId } = req.params;
+
+    const classItem = await require('../models').Class.findByPk(classId);
+    const student = await require('../models').Student.findByPk(studentId);
+
+    if (!classItem || !student) {
+      return res.status(404).json({ error: 'Turma ou aluno não encontrado' });
+    }
+
+    const isInClass = await classItem.hasStudent(student);
+    res.json({ studentId, classId, enrolled: isInClass });
+  } catch (error) {
+    console.error('Erro ao verificar matrícula do aluno na turma:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// POST /api/classes/:classId/students/check-batch
+router.post('/:classId/students/check-batch', auth(), async (req, res) => {
+  try {
+    const { classId } = req.params;
+    const { studentIds } = req.body;
+
+    if (!Array.isArray(studentIds)) {
+      return res.status(400).json({ error: 'studentIds deve ser um array' });
+    }
+
+    const classItem = await require('../models').Class.findByPk(classId);
+    if (!classItem) {
+      return res.status(404).json({ error: 'Turma não encontrada' });
+    }
+
+    const results = [];
+    for (const studentId of studentIds) {
+      const student = await require('../models').Student.findByPk(studentId);
+      if (!student) {
+        results.push({ studentId, enrolled: false, error: 'Aluno não encontrado' });
+        continue;
+      }
+      const isInClass = await classItem.hasStudent(student);
+      results.push({ studentId, enrolled: isInClass });
+    }
+
+    res.json(results);
+  } catch (error) {
+    console.error('Erro ao verificar matrícula em lote:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// POST /api/classes/:classId/students/check-batch
+router.post('/:classId/students/check-batch', auth(), async (req, res) => {
+  try {
+    const { classId } = req.params;
+    const { studentIds } = req.body;
+
+    if (!Array.isArray(studentIds)) {
+      return res.status(400).json({ error: 'studentIds deve ser um array' });
+    }
+
+    const ClassStudent = require('../models').ClassStudent;
+
+    const existingLinks = await ClassStudent.findAll({
+      where: {
+        studentId: studentIds
+      },
+      attributes: ['studentId']
+    });
+
+    const enrolledSet = new Set(existingLinks.map(link => link.studentId));
+
+    const results = studentIds.map(id => ({
+      studentId: id,
+      enrolled: enrolledSet.has(id)
+    }));
+
+    res.json(results);
+  } catch (error) {
+    console.error('Erro ao verificar matrícula em lote:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
 module.exports = router;
 
 
